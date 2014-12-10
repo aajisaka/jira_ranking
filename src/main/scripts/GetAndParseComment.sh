@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Scripts for Ranking Jira
 #
@@ -18,8 +18,8 @@
 # Number of issues get per request. At most 100.
 SIZE=100
 
-if [ $# -lt 1 -o $# -gt 2 ]; then
-  echo "Usage: ./GetAndParseJira.sh <count> [<size>]" 1>&2
+if [ $# -gt 1 ]; then
+  echo "Usage: ./GetAndParseComment" 1>&2
   exit 1
 fi
 
@@ -31,20 +31,45 @@ if [ $# -eq 2 ]; then
   fi
 fi
 
-for i in `seq 0 $COUNT`
-do
-  # Get JSON formatted information from ASF JIRA via REST API
-  offset=`expr $i \* $SIZE`
-  wget -O HADOOP${i}.json "https://issues.apache.org/jira/rest/api/2/search?jql=project%20in%20(HADOOP%2C%20HDFS%2C%20MAPREDUCE%2C%20YARN)%20AND%20status%20in%20(Resolved%2C%20Closed)%20ORDER%20BY%20updated%20DESC&maxResults=${SIZE}&startAt=${offset}"
-  
-  # Parse JSON
-  ./JiraParse.py HADOOP${i}.json >> tmp.tsv
+MAPREDUCE_SIZE=6115
+HDFS_SIZE=7450
+YARN_SIZE=2930
+HADOOP_SIZE=11360
 
-  /bin/rm -f HADOOP${i}.json
+array=();
+
+for i in `seq 1 ${MAPREDUCE_SIZE}`
+do
+  array+=" "
+  array+="MAPREDUCE-$i"
 done
 
-# Get input format (issue_no, project, reporter, assignee) from parsed file
-sed 's/-/	/' tmp.tsv > tmp2.tsv
-awk -F'\t' '{print $2"\t"$1"\t"$5"\t"$3}' tmp2.tsv > jira.tsv
+for i in `seq 1 ${HDFS_SIZE}`
+do
+  array+=" "
+  array+="HDFS-$i"
+done
 
-/bin/rm -f tmp.tsv tmp2.tsv
+for i in `seq 1 ${YARN_SIZE}`
+do
+  array+=" "
+  array+="YARN-$i"
+done
+
+for i in `seq 1 ${HADOOP_SIZE}`
+do
+  array+=" "
+  array+="HADOOP-$i"
+done
+
+#for e in ${array[@]}; do
+#    echo $e
+#done
+
+for issue in ${array[@]}; do
+  wget --no-check-certificate -O comment.json "https://issues.apache.org/jira/rest/api/2/issue/$issue/comment"
+  ./CommentParse.py comment.json >> tmp.tsv
+  cat comment.json >> comment-all.json
+  /bin/rm -f comment.json
+done
+
