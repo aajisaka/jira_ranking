@@ -23,8 +23,6 @@ if [ $# -gt 1 ]; then
   exit 1
 fi
 
-COUNT=`expr $1 - 1`
-
 if [ $# -eq 2 ]; then
   if [ $SIZE -ge 1 -a $SIZE -le 100 ]; then
     SIZE=$2
