@@ -31,17 +31,16 @@ if [ $# -eq 2 ]; then
   fi
 fi
 
-for i in `seq 0 $COUNT`
-do
-  # Get JSON formatted information from ASF JIRA via REST API
-  offset=`expr $i \* $SIZE`
-  wget -O HADOOP${i}.json "https://issues.apache.org/jira/rest/api/2/search?jql=project%20in%20(HADOOP%2C%20HDFS%2C%20MAPREDUCE%2C%20YARN)%20AND%20status%20in%20(Resolved%2C%20Closed)%20ORDER%20BY%20updated%20DESC&maxResults=${SIZE}&startAt=${offset}"
-  
-  # Parse JSON
-  ./JiraParse.py HADOOP${i}.json >> tmp.tsv
 
-  /bin/rm -f HADOOP${i}.json
-done
+# Download JIRAs
+PARALLEL=2
+seq 0 $COUNT | xargs -P$PARALLEL -n1 sh -c 'offset=`expr $0 \* 100`; wget -O HADOOP$0.json "https://issues.apache.org/jira/rest/api/2/search?jql=project%20in%20(HADOOP%2C%20HDFS%2C%20MAPREDUCE%2C%20YARN)%20AND%20status%20in%20(Resolved%2C%20Closed)%20ORDER%20BY%20updated%20DESC&maxResults=100&startAt=$offset"'
+
+# Parse JSON
+seq 0 $COUNT | xargs -P1 -n1 sh -c './jiraParse.py HADOOP$0.json >> tmp.tsv'
+
+# Remove JSON
+/bin/rm -f HADOOP*.json
 
 # Get input format (issue_no, project, reporter, assignee) from parsed file
 sed 's/-/	/' tmp.tsv > tmp2.tsv
